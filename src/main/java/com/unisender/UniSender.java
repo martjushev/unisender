@@ -505,7 +505,7 @@ public class UniSender {
 			return new Campaign(
 					res.getInt("campaign_id"),
 					res.getString("status"),
-					res.getInt("Count")
+					res.getInt("count")
 			);
 			
 		} catch (JSONException e) {
@@ -603,6 +603,7 @@ public class UniSender {
         MapUtils.putIfNotNull(map, "track_links", sr.getTrackLinks());
         MapUtils.putIfNotNull(map, "attach_multi", sr.getAttachMulti());
         MapUtils.putIfNotNull(map, "user_campaign_id", sr.getUserCampaignId());
+		MapUtils.putIfNotNull(map, "error_checking", 1);
 
         return executeSendEmail(map);
 	}
