@@ -1,5 +1,9 @@
 package com.unisender;
 
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -22,10 +26,6 @@ import com.unisender.entities.MailList;
 import com.unisender.exceptions.UniSenderConnectException;
 import com.unisender.requests.BatchSendEmailRequest;
 import com.unisender.responses.SendEmailResponse;
-
-import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * @author AYeremenok
@@ -98,9 +98,9 @@ public class UnisenderTest {
         Set<String> ids = new HashSet<String>(asList("59847824", "59847829", "59847834"));
         nextResponse =
                 "{\"result\":{\"statuses\":[" +
-                        "{\"id\":59847824,\"status\":\"ok_sent\"}," +
-                        "{\"id\":59847829,\"status\":\"err_not_sent\"}," +
-                        "{\"id\":59847834,\"status\":\"ok_sent\"}" +
+                        "{\"id\":\"59847824\",\"status\":\"ok_sent\"}," +
+                        "{\"id\":\"59847829\",\"status\":\"err_not_sent\"}," +
+                        "{\"id\":\"59847834\",\"status\":\"ok_sent\"}" +
                 "]}}";
         Map<String, String> response = uniSender.checkEmail(ids);
         assertLastQueryContains("59847824");
