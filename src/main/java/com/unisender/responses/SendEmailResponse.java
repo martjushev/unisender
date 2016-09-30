@@ -1,15 +1,17 @@
 package com.unisender.responses;
 
+import java.util.List;
+
 public class SendEmailResponse {
 	private String email;
 	private String id;
-	private String error;
+	private List<SendEmailResponseError> errors;
 	
-	public SendEmailResponse(String email, String id, String error) {
+	public SendEmailResponse(String email, String id, List<SendEmailResponseError> errors) {
 		super();
 		this.email = email;
 		this.id = id;
-		this.error = error;
+		this.errors = errors;
 	}
 
 	public String getEmail() {
@@ -28,19 +30,20 @@ public class SendEmailResponse {
 		this.id = id;
 	}
 
-	public String getError() {
-		return error;
+	public List<SendEmailResponseError> getErrors() {
+		return errors;
 	}
 
-	public void setError(String error) {
-		this.error = error;
+	public void setErrors(List<SendEmailResponseError> errors) {
+		this.errors = errors;
 	}
-	
+
 	@Override
-	public String toString(){
-		return "id: " + this.id
-			+ " email: " + this.email
-			+ " error" + this.error;
+	public String toString() {
+		return "SendEmailResponse{" +
+				"email='" + email + '\'' +
+				", id='" + id + '\'' +
+				", errors=" + errors +
+				'}';
 	}
-	
 }

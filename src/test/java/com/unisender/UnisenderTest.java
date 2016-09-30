@@ -1,9 +1,5 @@
 package com.unisender;
 
-import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -15,9 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -26,6 +19,11 @@ import com.unisender.entities.MailList;
 import com.unisender.exceptions.UniSenderConnectException;
 import com.unisender.requests.BatchSendEmailRequest;
 import com.unisender.responses.SendEmailResponse;
+import com.unisender.responses.SendEmailResponseError;
+
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author AYeremenok
@@ -71,16 +69,49 @@ public class UnisenderTest {
 
         BatchSendEmailRequest request = new BatchSendEmailRequest(messages, mailList, null, null, null, USER_CAMPAIGN_ID);
 
-        nextResponse = toJsonMessages(createMap(MAIL_1, "", MAIL_2, ""));
+        nextResponse = "{\n" +
+                "    \"result\": [\n" +
+                "        {\n" +
+                "            \"id\": \"8394628274\",\n" +
+                "            \"index\": 0,\n" +
+                "            \"email\": \"to1@test.com\",\n" +
+                "            \"acceptDate\": \"2016-09-29 08:18:12\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"id\": \"8394628275\",\n" +
+                "            \"index\": 1,\n" +
+                "            \"errors\": [\n" +
+                "                {\n" +
+                "                    \"message\": \"Указанный язык не поддерживается системой.\",\n" +
+                "                    \"accept_date\": \"2016-09-27 08:18:12\",\n" +
+                "                    \"code\": \"unsupported_lang\"\n" +
+                "                },\n" +
+                "                {\n" +
+                "                    \"message\": \"Email данному адресату уже был отправлен\",\n" +
+                "                    \"accept_date\": \"2016-09-28 08:18:12\",\n" +
+                "                    \"code\": \"has_been_sent\"\n" +
+                "                }\n" +
+                "            ],\n" +
+                "            \"email\": \"to2@test.com\",\n" +
+                "            \"acceptDate\": \"2016-09-28 08:18:12\"\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}";
         List<SendEmailResponse> responses = uniSender.batchSendEmail(request);
 
         assertEquals(2, responses.size());
         SendEmailResponse response1 = responses.get(0);
         SendEmailResponse response2 = responses.get(1);
 
-        assertEquals("", response1.getError());
+        assertEquals(0, response1.getErrors().size());
         assertEquals(MAIL_1, response1.getEmail());
-        assertEquals("", response2.getError());
+
+        List<SendEmailResponseError> response2Errors = response2.getErrors();
+        assertEquals(2, response2Errors.size());
+        assertEquals("unsupported_lang", response2Errors.get(0).getCode());
+        assertEquals("Указанный язык не поддерживается системой.", response2Errors.get(0).getMessage());
+        assertEquals("has_been_sent", response2Errors.get(1).getCode());
+        assertEquals("Email данному адресату уже был отправлен", response2Errors.get(1).getMessage());
         assertEquals(MAIL_2, response2.getEmail());
 
         assertLastQueryContains("email[0]=" + MAIL_1);
@@ -117,23 +148,6 @@ public class UnisenderTest {
     private void assertLastQueryContains(String substring) throws UnsupportedEncodingException {
         String decodedQuery = URLDecoder.decode(lastPostQuery, UniSender.API_ENCODING);
         assertTrue(String.format("%s\n does not contain %s", decodedQuery, substring), decodedQuery.contains(substring));
-    }
-
-    private static String toJsonMessages(Map<String, String> emailsWithErrors) throws JSONException {
-        JSONObject result = new JSONObject();
-        JSONArray array = new JSONArray();
-        result.put("result", array);
-
-        int emailCounter = 0;
-        for (Map.Entry<String, String> emailWithError : emailsWithErrors.entrySet()) {
-            JSONObject entry = new JSONObject();
-            array.put(entry);
-
-            entry.put("id", emailCounter++);
-            entry.put("email", emailWithError.getKey());
-            entry.put("error", emailWithError.getValue());
-        }
-        return result.toString();
     }
 
     private static <K, V> Map<K, V> createMap(K k1, V v1, K k2, V v2) {

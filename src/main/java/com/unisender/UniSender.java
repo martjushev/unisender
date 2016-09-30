@@ -18,8 +18,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -61,6 +59,7 @@ import com.unisender.responses.CheckUserExistsResponse;
 import com.unisender.responses.GetCampaignDeliveryStatsResponse;
 import com.unisender.responses.ImportContactsResponse;
 import com.unisender.responses.SendEmailResponse;
+import com.unisender.responses.SendEmailResponseError;
 import com.unisender.responses.SendSmsResponse;
 import com.unisender.responses.TransferMoneyResponse;
 import com.unisender.utils.MapUtils;
@@ -618,7 +617,7 @@ public class UniSender {
      * @throws UniSenderMethodException when server returns error
      * @throws UniSenderInvalidResponseException when server response cannot be parsed
      *
-     * @see http://www.unisender.com/ru/help/api/sendEmail.html
+     * @see <a href="http://www.unisender.com/ru/help/api/sendEmail">http://www.unisender.com/ru/help/api/sendEmail</a>
      */
     public List<SendEmailResponse> batchSendEmail(BatchSendEmailRequest request) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
         Map<String, EmailMessage> messagesByReceiverEmail = request.getMessagesByReceiverEmail();
@@ -646,6 +645,7 @@ public class UniSender {
         MapUtils.putIfNotNull(map, "track_links", request.getTrackLinks());
         MapUtils.putIfNotNull(map, "attach_multi", allAttachments.size() > 1 ? 1 : 0);
         MapUtils.putIfNotNull(map, "user_campaign_id", request.getUserCampaignId());
+		MapUtils.putIfNotNull(map, "error_checking", 1);
 
         return executeSendEmail(map);
     }
@@ -688,10 +688,10 @@ public class UniSender {
                 JSONArray resa = response.getJSONArray("result");
                 for (int i = 0; i < resa.length(); ++i) {
                     final JSONObject jso = resa.getJSONObject(i);
-                    result.add(new SendEmailResponse(jso.getString("email"), jso.optString("id"), jso.optString("error")));
+					result.add(new SendEmailResponse(jso.getString("email"), jso.optString("id"), parseErrors(jso)));
                 }
             } else {
-                result.add(new SendEmailResponse(res.getString("email"), res.optString("email_id"), res.optString("error")));
+                result.add(new SendEmailResponse(res.getString("email"), res.optString("email_id"), parseErrors(res)));
             }
 
             return result;
@@ -700,7 +700,21 @@ public class UniSender {
         }
     }
 
-    /**
+	private List<SendEmailResponseError> parseErrors(JSONObject jso) {
+		JSONArray errorsJson = jso.optJSONArray("errors");
+		if(errorsJson==null){
+			return Collections.emptyList();
+		}
+
+		List<SendEmailResponseError> errors = new ArrayList<SendEmailResponseError>(errorsJson.length());
+		for (int j = 0; j < errorsJson.length(); j++) {
+            final JSONObject error = errorsJson.getJSONObject(j);
+            errors.add(new SendEmailResponseError(error.getString("code"), error.getString("message")));
+        }
+		return errors;
+	}
+
+	/**
 	 * 
 	 * @param emailId Код сообщения, возвращённый методом sendEmail.
 	 * @return status 
@@ -865,7 +879,7 @@ public class UniSender {
 	}
 	/**
 	 * 
-	 * @param RegisterRequest
+	 * @param rr
 	 * @return api_key
 	 * @see <a href="http://www.unisender.com/ru/help/api/register">http://www.unisender.com/ru/help/api/register</a>
 	 */
