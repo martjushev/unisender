@@ -1,28 +1,5 @@
 package com.unisender;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import com.unisender.entities.Campaign;
 import com.unisender.entities.Contacts;
 import com.unisender.entities.EmailMessage;
@@ -67,6 +44,28 @@ import com.unisender.responses.Warning;
 import com.unisender.utils.MapUtils;
 import com.unisender.utils.StringUtils;
 import com.unisender.utils.URLEncodedUtils;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class UniSender {
 
@@ -110,26 +109,18 @@ public class UniSender {
 	}
 
 	private URL makeURL(String language, String method) {
-		String file = String.format("/%s/api/%s?format=json%s",
+		String file = String.format("/%s/api/%s?api_key=%s&format=json%s%s",
 				language,
 				method,
-				isTestMode ? "&test_mode=1" : "");
+				apiKey,
+				isTestMode ? "&test_mode=1" : "",
+				useGzipForRequestHeader ? "&response_compression=gzip&request_compression=gzip" : "");
 		try {
 			return new URL(useHttps ? "https" : "http", API_HOST, file);
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}
 		return null;
-	}
-
-	private String makeQuery(Map<String, String> args) {
-		if (args == null){
-			args = new LinkedHashMap<String, String>(1);
-		}
-
-		args.put("api_key", this.apiKey);
-
-		return URLEncodedUtils.formatQuery(args, API_ENCODING);
 	}
 
 	private void checkErrors(JSONObject response)  throws UniSenderMethodException, UniSenderInvalidResponseException{
@@ -162,10 +153,10 @@ public class UniSender {
 		}
 	}
 
-	protected JSONObject executeMethod(String method, Map<String, String> args)
+	private JSONObject executeMethod(String method, Map<String, String> args)
 					throws UniSenderConnectException, UniSenderInvalidResponseException, UniSenderMethodException {
 		URL url = makeURL(method);
-		String output = execute(url, makeQuery(args));
+		String output = execute(url, URLEncodedUtils.formatQuery(args, API_ENCODING));
 		try {
 			JSONObject response = new JSONObject(output);
 			checkErrors(response);
@@ -178,13 +169,25 @@ public class UniSender {
 	protected String execute(URL url, String postQuery) throws UniSenderConnectException {
 		HttpURLConnection urlc = null;
 		try {
+			byte[] bytes = postQuery.getBytes();
+
+			if(useGzipForRequestHeader){
+				try (ByteArrayOutputStream byteArrayOS = new ByteArrayOutputStream();
+					 GZIPOutputStream gzipOS = new GZIPOutputStream(byteArrayOS)) {
+					gzipOS.write(bytes);
+					gzipOS.flush();
+					gzipOS.close();
+					bytes = byteArrayOS.toByteArray();
+				}
+			}
+
 			urlc = (HttpURLConnection) url.openConnection();
 			urlc.setUseCaches(false);
 			urlc.setInstanceFollowRedirects(false);
 
 			urlc.setRequestMethod("POST");
 			urlc.setRequestProperty("Content-type", "application/x-www-form-urlencoded");
-			urlc.setRequestProperty("Content-Length", "" + postQuery.getBytes().length);
+			urlc.setRequestProperty("Content-Length", "" + bytes.length);
 			urlc.setRequestProperty("Accept", "application/json, text/html, text/plain, text/javascript");
             if (useGzipForRequestHeader) {
                 urlc.setRequestProperty("Content-Encoding", "gzip");
@@ -194,23 +197,20 @@ public class UniSender {
 			urlc.setDoOutput(true);
 			urlc.setDoInput(true);
 
-			DataOutputStream os = new DataOutputStream(getOutputStream(urlc));
-			os.writeBytes(postQuery);
-			os.flush();
-			os.close();
-
-			InputStreamReader isr = new InputStreamReader(getInputStream(urlc));
-			BufferedReader rd = new BufferedReader(isr);
-
-			char[] buffer = new char[255];
-			int read = 0;
-			StringBuilder sb = new StringBuilder();
-			while ((read = rd.read(buffer)) != -1) {
-				sb.append(buffer, 0, read);
+			try(OutputStream os = urlc.getOutputStream()){
+				os.write(bytes);
+				os.flush();
 			}
-			rd.close();
 
-			return sb.toString();
+			try (InputStream is = getInputStream(urlc);
+				 ByteArrayOutputStream result = new ByteArrayOutputStream()){
+				byte[] buffer = new byte[1024];
+				int length;
+				while ((length = is.read(buffer)) != -1) {
+                    result.write(buffer, 0, length);
+                }
+				return result.toString("UTF-8");
+			}
 		} catch (IOException e){
 			throw new UniSenderConnectException(e);
 		} finally {
@@ -220,15 +220,15 @@ public class UniSender {
 		}
 	}
 
-    protected InputStream getInputStream(HttpURLConnection urlc) throws IOException {
-        return urlc.getInputStream();
-    }
+	private InputStream getInputStream(HttpURLConnection urlc) throws IOException {
+		InputStream is = urlc.getInputStream();
+		if (useGzipForRequestHeader){
+			is = new GZIPInputStream(is);
+		}
+		return is;
+	}
 
-    protected OutputStream getOutputStream(HttpURLConnection urlc) throws IOException {
-        return urlc.getOutputStream();
-    }
-
-    private Map<String, String> createMap(){
+	private Map<String, String> createMap(){
 		return new LinkedHashMap<String, String>();
 	}
 
