@@ -3,23 +3,16 @@ package com.unisender.responses;
 import java.util.List;
 
 public class SendEmailResponse {
-	private String email;
 	private String id;
+	private int index;
+	private String email;
 	private List<SendEmailResponseError> errors;
-	
-	public SendEmailResponse(String email, String id, List<SendEmailResponseError> errors) {
-		super();
-		this.email = email;
+
+	public SendEmailResponse(String id, int index, String email, List<SendEmailResponseError> errors) {
 		this.id = id;
-		this.errors = errors;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public void setEmail(String email) {
+		this.index = index;
 		this.email = email;
+		this.errors = errors;
 	}
 
 	public String getId() {
@@ -28,6 +21,22 @@ public class SendEmailResponse {
 
 	public void setId(String id) {
 		this.id = id;
+	}
+
+	public int getIndex() {
+		return index;
+	}
+
+	public void setIndex(int index) {
+		this.index = index;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
 	}
 
 	public List<SendEmailResponseError> getErrors() {
@@ -41,8 +50,9 @@ public class SendEmailResponse {
 	@Override
 	public String toString() {
 		return "SendEmailResponse{" +
-				"email='" + email + '\'' +
-				", id='" + id + '\'' +
+				"id='" + id + '\'' +
+				", index=" + index +
+				", email='" + email + '\'' +
 				", errors=" + errors +
 				'}';
 	}

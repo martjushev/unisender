@@ -118,6 +118,7 @@ public class UnisenderTest {
 
         assertEquals(0, response1.getErrors().size());
         assertEquals(MAIL_1, response1.getEmail());
+        assertEquals(0, response1.getIndex());
 
         List<SendEmailResponseError> response2Errors = response2.getErrors();
         assertEquals(2, response2Errors.size());
@@ -126,6 +127,7 @@ public class UnisenderTest {
         assertEquals("has_been_sent", response2Errors.get(1).getCode());
         assertEquals("Email данному адресату уже был отправлен", response2Errors.get(1).getMessage());
         assertEquals(MAIL_2, response2.getEmail());
+        assertEquals(1, response2.getIndex());
 
         List<Warning> warnings = responseWithWarnings.getWarnings();
         assertEquals(1, warnings.size());
