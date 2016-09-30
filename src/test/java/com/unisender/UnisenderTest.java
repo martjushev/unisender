@@ -1,5 +1,16 @@
 package com.unisender;
 
+import com.unisender.entities.EmailMessage;
+import com.unisender.entities.MailList;
+import com.unisender.exceptions.UniSenderConnectException;
+import com.unisender.requests.BatchSendEmailRequest;
+import com.unisender.responses.ResponseWithWarnings;
+import com.unisender.responses.SendEmailResponse;
+import com.unisender.responses.SendEmailResponseError;
+import com.unisender.responses.Warning;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -10,16 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import org.junit.Before;
-import org.junit.Test;
-
-import com.unisender.entities.EmailMessage;
-import com.unisender.entities.MailList;
-import com.unisender.exceptions.UniSenderConnectException;
-import com.unisender.requests.BatchSendEmailRequest;
-import com.unisender.responses.SendEmailResponse;
-import com.unisender.responses.SendEmailResponseError;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -32,12 +33,15 @@ public class UnisenderTest {
 
     private static final String MAIL_1 = "to1@test.com";
     private static final String MAIL_2 = "to2@test.com";
+    private static final String MAIL_3 = "to3@test.com";
     private static final String SENDER_NAME = "Sender";
     private static final String SENDER_EMAIL = "from@test.com";
     private static final String SUBJECT_1 = "Subject1";
     private static final String SUBJECT_2 = "Subject2";
+    private static final String SUBJECT_3 = "Subject3";
     private static final String BODY_1 = "<html>body1</html>";
     private static final String BODY_2 = "<html>body2</html>";
+    private static final String BODY_3 = "<html>body3</html>";
     private static final String USER_CAMPAIGN_ID = UUID.randomUUID().toString();
     private static final String REPLY_TO = "noreply@test.tt";
 
@@ -63,7 +67,8 @@ public class UnisenderTest {
     public void testBatchSend() throws Exception {
         Map<String, EmailMessage> messages = createMap(
                 MAIL_1, new EmailMessage(SENDER_NAME, SENDER_EMAIL, SUBJECT_1, BODY_1),
-                MAIL_2, new EmailMessage(SENDER_NAME, SENDER_EMAIL, SUBJECT_2, BODY_2)
+                MAIL_2, new EmailMessage(SENDER_NAME, SENDER_EMAIL, SUBJECT_2, BODY_2),
+                MAIL_3, new EmailMessage(SENDER_NAME, SENDER_EMAIL, SUBJECT_3, BODY_3)
         );
         messages.get(MAIL_1).setReplyTo(REPLY_TO);
 
@@ -95,9 +100,17 @@ public class UnisenderTest {
                 "            \"email\": \"to2@test.com\",\n" +
                 "            \"acceptDate\": \"2016-09-28 08:18:12\"\n" +
                 "        }\n" +
+                "    ]," +
+                "    \"warnings\": [\n" +
+                "      {\n" +
+                "        \"index\": \"2\",\n" +
+                "        \"email\": \"to3@test.com\",\n" +
+                "        \"warning\": \"SZ150219-06 to3@test.com Адрес отписан от любых писем в списке 1\"\n" +
+                "      }\n" +
                 "    ]\n" +
                 "}";
-        List<SendEmailResponse> responses = uniSender.batchSendEmail(request);
+        ResponseWithWarnings<List<SendEmailResponse>> responseWithWarnings = uniSender.batchSendEmailReturnWarnings(request);
+        List<SendEmailResponse> responses = responseWithWarnings.getResponse();
 
         assertEquals(2, responses.size());
         SendEmailResponse response1 = responses.get(0);
@@ -113,6 +126,12 @@ public class UnisenderTest {
         assertEquals("has_been_sent", response2Errors.get(1).getCode());
         assertEquals("Email данному адресату уже был отправлен", response2Errors.get(1).getMessage());
         assertEquals(MAIL_2, response2.getEmail());
+
+        List<Warning> warnings = responseWithWarnings.getWarnings();
+        assertEquals(1, warnings.size());
+        assertEquals(2, warnings.get(0).getIndex());
+        assertEquals(MAIL_3, warnings.get(0).getEmail());
+        assertEquals("SZ150219-06 to3@test.com Адрес отписан от любых писем в списке 1", warnings.get(0).getWarning());
 
         assertLastQueryContains("email[0]=" + MAIL_1);
         assertLastQueryContains("subject[0]=" + SUBJECT_1);
@@ -150,10 +169,11 @@ public class UnisenderTest {
         assertTrue(String.format("%s\n does not contain %s", decodedQuery, substring), decodedQuery.contains(substring));
     }
 
-    private static <K, V> Map<K, V> createMap(K k1, V v1, K k2, V v2) {
+    private static <K, V> Map<K, V> createMap(K k1, V v1, K k2, V v2, K k3, V v3) {
         Map<K, V> map = new LinkedHashMap<K, V>();
         map.put(k1, v1);
         map.put(k2, v2);
+        map.put(k3, v3);
         return map;
     }
 }

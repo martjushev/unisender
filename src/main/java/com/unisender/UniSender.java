@@ -58,16 +58,18 @@ import com.unisender.responses.ActivateContactsResponse;
 import com.unisender.responses.CheckUserExistsResponse;
 import com.unisender.responses.GetCampaignDeliveryStatsResponse;
 import com.unisender.responses.ImportContactsResponse;
+import com.unisender.responses.ResponseWithWarnings;
 import com.unisender.responses.SendEmailResponse;
 import com.unisender.responses.SendEmailResponseError;
 import com.unisender.responses.SendSmsResponse;
 import com.unisender.responses.TransferMoneyResponse;
+import com.unisender.responses.Warning;
 import com.unisender.utils.MapUtils;
 import com.unisender.utils.StringUtils;
 import com.unisender.utils.URLEncodedUtils;
 
 public class UniSender {
-	
+
 	private String apiKey;
 	private String language;
 	private Boolean useHttps;
@@ -76,13 +78,13 @@ public class UniSender {
 
 	static final String API_HOST = "api.unisender.com";
 	static final String API_ENCODING = "UTF-8";
-	
-	
-	
+
+
+
 	public UniSender(String apiKey) {
 		this(apiKey, "ru", false, false);
 	}
-	
+
 	public UniSender(String apiKey, boolean isTestMode) {
 		this(apiKey, "ru", isTestMode, false);
 	}
@@ -94,7 +96,7 @@ public class UniSender {
 		this.useHttps = useHttps;
 		this.isTestMode = isTestMode;
 	}
-	
+
 	public UniSender(Config config){
 		this(config.getApiKey(), config.getLanguage(), config.isTestMode(), config.useHttps());
 	}
@@ -124,9 +126,9 @@ public class UniSender {
 		if (args == null){
 			args = new LinkedHashMap<String, String>(1);
 		}
-		
+
 		args.put("api_key", this.apiKey);
-		
+
 		return URLEncodedUtils.formatQuery(args, API_ENCODING);
 	}
 
@@ -135,7 +137,7 @@ public class UniSender {
 			try {
 				String errorMsg = response.getString("error");
 				String code = response.getString("code");
-				
+
 				MethodExceptionCode mec = MethodExceptionCode.UNKNOWN;
 				if ("unspecified".equals(code)){
 					mec = MethodExceptionCode.UNSPECIFIED;
@@ -153,14 +155,14 @@ public class UniSender {
                     mec = MethodExceptionCode.TOO_MANY_DOUBLE_OPTINS;
                 }
 				throw new UniSenderMethodException(mec, errorMsg);
-				
+
 			} catch (JSONException e) {
 				throw new UniSenderInvalidResponseException(e);
 			}
 		}
 	}
-	
-	protected JSONObject executeMethod(String method, Map<String, String> args) 
+
+	protected JSONObject executeMethod(String method, Map<String, String> args)
 					throws UniSenderConnectException, UniSenderInvalidResponseException, UniSenderMethodException {
 		URL url = makeURL(method);
 		String output = execute(url, makeQuery(args));
@@ -229,35 +231,35 @@ public class UniSender {
     private Map<String, String> createMap(){
 		return new LinkedHashMap<String, String>();
 	}
-	
+
 	private Map<String, String> createMap(String argName, String argVal){
 		Map<String, String> m = createMap();
 		m.put(argName, argVal);
 		return m;
 	}
-	
-	public java.util.List<MailList> getLists() throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public java.util.List<MailList> getLists() throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		JSONObject response = executeMethod("getLists", null);
 		try {
 			JSONArray result = response.getJSONArray("result");
 			java.util.List<MailList> lists = new ArrayList<MailList>();
-			
+
 			for (int i = 0; i < result.length(); ++i) {
 				JSONObject jso = result.getJSONObject(i);
 				final Integer id = jso.getInt("id");
 				final String title = jso.getString("title");
 				lists.add(new MailList(id, title));
 			}
-			
+
 			return lists;
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public MailList createList(MailList list) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public MailList createList(MailList list) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> p = createMap("title", list.getTitle());
-		
+
 		JSONObject response = executeMethod("createList", p);
 		try {
 			JSONObject result = response.getJSONObject("result");
@@ -267,20 +269,20 @@ public class UniSender {
 		}
 		return list;
 	}
-	
-	public Person subscribe(SubscribeRequest sr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
-		
+
+	public Person subscribe(SubscribeRequest sr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
 		Person person = sr.getFields();
 		if (person.getEmail() == null && person.getPhone() == null){
 			throw new IllegalStateException("fields.email or fields.phone must be defined");
 		}
 		Map<String, String> map = createMap();
-		
+
 		MapUtils.putIfNotNull(map, "list_ids", StringUtils.joinMailList(sr.getLists(), ","));
-		
+
 		MapUtils.putIfNotNull(map, "fields[email]", person.getEmail());
 		MapUtils.putIfNotNull(map, "fields[phone]", person.getPhone());
-		
+
 		List<Field> fields = person.getFields();
 		if (fields != null && !fields.isEmpty()){
 			for (Field f: fields){
@@ -289,7 +291,7 @@ public class UniSender {
 						f.getValue());
 			}
 		}
-		
+
 		MapUtils.putIfNotNull(map, "tags", sr.getTags());
 		MapUtils.putIfNotNull(map, "request_ip", sr.getRequestIp());
 		MapUtils.putIfNotNull(map, "request_time", sr.getRequestTime());
@@ -297,7 +299,7 @@ public class UniSender {
 		MapUtils.putIfNotNull(map, "confirm_ip", sr.getConfirmIp());
 		MapUtils.putIfNotNull(map, "confirm_time", sr.getConfirmTime());
 		MapUtils.putIfNotNull(map, "overwrite", sr.getOverwrite());
-		
+
 		JSONObject response = executeMethod("subscribe", map);
 		try {
 			person.setId(response.getInt("person_id"));
@@ -306,8 +308,8 @@ public class UniSender {
 		}
 		return person;
 	}
-	
-	public void exclude(ExcludeRequest er) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public void exclude(ExcludeRequest er) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		map.put("contact_type", er.getContactType().toString());
 		map.put("contact", er.getContact());
@@ -316,11 +318,11 @@ public class UniSender {
 		if (l != null && !l.isEmpty()){
 			map.put("list_ids", StringUtils.joinMailList(l, ","));
 		}
-		
+
 		executeMethod("exclude", map);
 	}
-	
-	public void unsubscribe(ExcludeRequest er) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public void unsubscribe(ExcludeRequest er) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		map.put("contact_type", er.getContactType().toString());
 		map.put("contact", er.getContact());
@@ -329,20 +331,20 @@ public class UniSender {
 		if (l != null && !l.isEmpty()){
 			map.put("list_ids", StringUtils.joinMailList(l, ","));
 		}
-		
+
 		executeMethod("unsubscribe", map);
 	}
-		
-	public ImportContactsResponse importContacts(ImportContactsRequest ic) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public ImportContactsResponse importContacts(ImportContactsRequest ic) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
-		FieldData fd = ic.getFieldData(); 
-		
+		FieldData fd = ic.getFieldData();
+
 		int filedsC = fd.getFiledCount();
 		for (int i = 0; i < filedsC; ++i)
 		{
 			map.put("field_names[" + i + "]", fd.getField(i));
 		}
-		
+
 		int dataC = fd.getDataCount();
 		for (int i = 0; i < dataC; ++i)
 		{
@@ -355,17 +357,17 @@ public class UniSender {
 				++dn;
 			}
 		}
-		
+
 		MapUtils.putIfNotNull(map, "double_optin", ic.getDoubleOptin());
 		MapUtils.putIfNotNull(map, "overwrite_tags", ic.getOverwriteTags());
 		MapUtils.putIfNotNull(map, "overwrite_lists", ic.getOverwriteLists());
-		
+
 		JSONObject response = executeMethod("importContacts", map);
 		try {
 			List<LogMessage> logs = null;
 			JSONObject res = response.getJSONObject("result");
 			JSONArray log  = res.optJSONArray("log");
-			
+
 			if (log != null){
 				logs = new ArrayList<LogMessage>();
 				for (int i = 0; i < log.length(); ++i)
@@ -378,7 +380,7 @@ public class UniSender {
 					));
 				}
 			}
-			
+
 			return new ImportContactsResponse(
 					res.getInt("total"),
 					res.getInt("inserted"),
@@ -391,11 +393,11 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public ActivateContactsResponse activateContacts(Contacts contacts) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public ActivateContactsResponse activateContacts(Contacts contacts) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		map.put("contact_type", contacts.getContactType().toString());
-		
+
 		List<MailList> listIds = contacts.getListsIds();
 		if (listIds != null){
 			MapUtils.putIfNotNull(map, "list_ids", StringUtils.joinMailList(listIds, ","));
@@ -423,30 +425,30 @@ public class UniSender {
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
-		
+
 	}
-	
+
 	private void addEmailMessage(Map<String, String> map, EmailMessage em){
 		MapUtils.putIfNotNull(map, "sender_name", em.getSenderName());
 		MapUtils.putIfNotNull(map, "sender_email", em.getSenderEmail());
 		MapUtils.putIfNotNull(map, "subject", em.getSubject());
 		MapUtils.putIfNotNull(map, "body", em.getBody());
-		
+
 		MapUtils.putIfNotNull(map, "lang", em.getLang());
 		MapUtils.putIfNotNull(map, "attachments", em.getAttachments());
 	}
-	
-	public EmailMessage createEmailMessage(CreateEmailMessageRequest cr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public EmailMessage createEmailMessage(CreateEmailMessageRequest cr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		EmailMessage em = cr.getEmailMessage();
-		
+
 		addEmailMessage(map, em);
 		MapUtils.putIfNotNull(map, "list_id", cr.getListId().getId());
 
 		MapUtils.putIfNotNull(map, "tag", cr.getTag());
 		MapUtils.putIfNotNull(map, "series_day", cr.getSeriesDay());
 		MapUtils.putIfNotNull(map, "series_time", cr.getSeriesTime());
-		
+
 		JSONObject response = executeMethod("createEmailMessage", map);
 		try {
 			JSONObject result = response.getJSONObject("result");
@@ -454,22 +456,22 @@ public class UniSender {
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
-		
-		return em; 
+
+		return em;
 	}
-	
-	public SmsMessage createSmsMessage(CreateSmsMessageRequest cr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public SmsMessage createSmsMessage(CreateSmsMessageRequest cr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		SmsMessage sm = cr.getSmsMessage();
-		
+
 		MapUtils.putIfNotNull(map, "sender", sm.getSender());
 		MapUtils.putIfNotNull(map, "body", sm.getBody());
 		MapUtils.putIfNotNull(map, "list_id", cr.getListId().getId());
-		
+
 		MapUtils.putIfNotNull(map, "tag", cr.getTag());
 		MapUtils.putIfNotNull(map, "series_day", cr.getSeriesDay());
 		MapUtils.putIfNotNull(map, "series_time", cr.getSeriesTime());
-		
+
 		JSONObject response = executeMethod("createSmsMessage", map);
 		try {
 			JSONObject result = response.getJSONObject("result");
@@ -479,25 +481,25 @@ public class UniSender {
 		}
 		return sm;
 	}
-	public Campaign createCampaign(CreateCampaignRequest cr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public Campaign createCampaign(CreateCampaignRequest cr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
-		
+
 		MapUtils.putIfNotNull(map, "message_id", cr.getMessageId().getId());
-		
+
 		MapUtils.putIfNotNull(map, "start_time", cr.getStartTime());
 		MapUtils.putIfNotNull(map, "timezone", cr.getTimezone());
 		MapUtils.putIfNotNull(map, "track_read", cr.getTrackRead());
 		MapUtils.putIfNotNull(map, "track_links", cr.getTrackLinks());
 		MapUtils.putIfNotNull(map, "contacts", cr.getContacts());
 		MapUtils.putIfNotNull(map, "defer", cr.getDefer());
-		
+
 		MapUtils.putIfNotNull(map, "track_ga", cr.getTrackGa());
 		MapUtils.putIfNotNull(map, "ga_medium", cr.getGaMedium());
 		MapUtils.putIfNotNull(map, "ga_source", cr.getGaSource());
 		MapUtils.putIfNotNull(map, "ga_campaign", cr.getGaCampaign());
 		MapUtils.putIfNotNull(map, "ga_content", cr.getGaContent());
 		MapUtils.putIfNotNull(map, "ga_term", cr.getGaTerm());
-		
+
 		JSONObject response = executeMethod("createCampaign", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
@@ -506,22 +508,22 @@ public class UniSender {
 					res.getString("status"),
 					res.getInt("count")
 			);
-			
+
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	public GetCampaignDeliveryStatsResponse getCampaignDeliveryStats(GetCampaignDeliveryStatsRequest sr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public GetCampaignDeliveryStatsResponse getCampaignDeliveryStats(GetCampaignDeliveryStatsRequest sr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "campaign_id", sr.getCampaign().getId());
 		MapUtils.putIfNotNull(map, "changed_since", sr.getChanged_since());
-		
+
 		JSONObject response = executeMethod("getCampaignDeliveryStats", map);
 		try {
 			final JSONObject res = response.getJSONObject("result");
 			final List<String> fields = new ArrayList<String>();
 			final List<List<String>> data = new ArrayList<List<String>>();
-			
+
 			final JSONArray jsFields = res.getJSONArray("fields");
 			for (int i = 0; i < jsFields.length(); ++i)
 			{
@@ -533,28 +535,28 @@ public class UniSender {
 				ArrayList<String> info = new ArrayList<String>();
 				data.add(info);
 				JSONArray jsDataFields = jsData.getJSONArray(i);
-				
+
 				for (int j = 0; j < jsDataFields.length(); ++j)
 				{
 					info.add(jsDataFields.getString(j));
 				}
 			}
-		
-			return new GetCampaignDeliveryStatsResponse(fields, data);			
+
+			return new GetCampaignDeliveryStatsResponse(fields, data);
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
-			
-	}	
+
+	}
 	public SendSmsResponse sendSms(
 			String phone,
-			SmsMessage smsMessage) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+			SmsMessage smsMessage) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
-		
+
 		MapUtils.putIfNotNull(map, "phone", phone);
 		MapUtils.putIfNotNull(map, "sender", smsMessage.getSender());
 		MapUtils.putIfNotNull(map, "text", smsMessage.getBody());
-		
+
 		JSONObject response = executeMethod("sendSms", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
@@ -563,24 +565,24 @@ public class UniSender {
 					res.getDouble("price"),
 					res.getString("sms_id")
 			);
-			
+
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
 	/**
-	 * 
+	 *
 	 * @param smsId Код сообщения, возвращённый методом sendSms.
 	 * @return status http://www.unisender.com/ru/help/api/checkSms
 	 * <pre>
-	 * ok_sent	 Сообщение отправлено, но статус доставки пока неизвестен. Статус временный и может измениться. 
-	 * ok_delivered	 Сообщение доставлено. Статус окончательный. 
-	 * err_delivery_failed	 Доставка не удалась. Статус окончательный. 
-	 * err_not_allowed	 Доставка невозможна, этот оператор связи не обслуживается. Статус окончательный. 
+	 * ok_sent	 Сообщение отправлено, но статус доставки пока неизвестен. Статус временный и может измениться.
+	 * ok_delivered	 Сообщение доставлено. Статус окончательный.
+	 * err_delivery_failed	 Доставка не удалась. Статус окончательный.
+	 * err_not_allowed	 Доставка невозможна, этот оператор связи не обслуживается. Статус окончательный.
 	 * err_dest_invalid	 Доставка невозможна, указан неправильный номер. Статус окончательный.
 	 * </pre>
 	 */
-	public String checkSms(String smsId) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public String checkSms(String smsId) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "sms_id ", smsId);
 		JSONObject response = executeMethod("checkSms", map);
@@ -591,7 +593,7 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	public List<SendEmailResponse> sendEmail(SendEmailRequest sr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public List<SendEmailResponse> sendEmail(SendEmailRequest sr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
         Map<String, String> map = createMap();
 
         MapUtils.putIfNotNull(map, "email", sr.getEmail());
@@ -604,10 +606,10 @@ public class UniSender {
         MapUtils.putIfNotNull(map, "user_campaign_id", sr.getUserCampaignId());
 		MapUtils.putIfNotNull(map, "error_checking", 1);
 
-        return executeSendEmail(map);
+        return executeSendEmail(map, false).getResponse();
 	}
 
-    /**
+	/**
      * Calls 'sendEmail' for a batch of messages according to array syntax.
      *
      * @param request batch request
@@ -620,10 +622,30 @@ public class UniSender {
      * @see <a href="http://www.unisender.com/ru/help/api/sendEmail">http://www.unisender.com/ru/help/api/sendEmail</a>
      */
     public List<SendEmailResponse> batchSendEmail(BatchSendEmailRequest request) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+		return batchSendEmail(request, false).getResponse();
+	}
+
+	/**
+     * Calls 'sendEmail' for a batch of messages according to array syntax.
+     *
+     * @param request batch request
+     * @return responses for each sent email, never null
+     *
+     * @throws UniSenderConnectException when connection error occurs
+     * @throws UniSenderMethodException when server returns error
+     * @throws UniSenderInvalidResponseException when server response cannot be parsed
+     *
+     * @see <a href="http://www.unisender.com/ru/help/api/sendEmail">http://www.unisender.com/ru/help/api/sendEmail</a>
+     */
+    public ResponseWithWarnings<List<SendEmailResponse>> batchSendEmailReturnWarnings(BatchSendEmailRequest request) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+		return batchSendEmail(request, true);
+	}
+
+    private ResponseWithWarnings<List<SendEmailResponse>> batchSendEmail(BatchSendEmailRequest request, boolean obtainWarnings) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
         Map<String, EmailMessage> messagesByReceiverEmail = request.getMessagesByReceiverEmail();
 
         if (messagesByReceiverEmail.isEmpty()) {
-            return Collections.emptyList();
+            return new ResponseWithWarnings<List<SendEmailResponse>>(Collections.<SendEmailResponse>emptyList());
         }
 
         Map<String, String> map = createMap();
@@ -647,7 +669,7 @@ public class UniSender {
         MapUtils.putIfNotNull(map, "user_campaign_id", request.getUserCampaignId());
 		MapUtils.putIfNotNull(map, "error_checking", 1);
 
-        return executeSendEmail(map);
+        return executeSendEmail(map, obtainWarnings);
     }
 
     private void addIndexedEmailMessage(Map<String, String> map, int index, String receiverEmail, EmailMessage emailMessage) {
@@ -677,7 +699,7 @@ public class UniSender {
         return property + '[' + index + ']';
     }
 
-    private List<SendEmailResponse> executeSendEmail(Map<String, String> map)
+    private ResponseWithWarnings<List<SendEmailResponse>> executeSendEmail(Map<String, String> map, boolean obtainWarnings)
             throws UniSenderConnectException, UniSenderInvalidResponseException, UniSenderMethodException {
         JSONObject response = executeMethod("sendEmail", map);
         try {
@@ -693,8 +715,21 @@ public class UniSender {
             } else {
                 result.add(new SendEmailResponse(res.getString("email"), res.optString("email_id"), parseErrors(res)));
             }
+            ResponseWithWarnings<List<SendEmailResponse>> responseWithWarnings = new ResponseWithWarnings<List<SendEmailResponse>>(result);
 
-            return result;
+            if (obtainWarnings) {
+                final JSONArray warningsJson = response.optJSONArray("warnings");
+                List<Warning> warnings = new ArrayList<Warning>();
+                if (warningsJson != null) {
+                    for (int i = 0; i < warningsJson.length(); ++i) {
+                        final JSONObject warning = warningsJson.getJSONObject(i);
+                        warnings.add(new Warning(warning.getInt("index"), warning.getString("email"), warning.getString("warning")));
+                    }
+                }
+                responseWithWarnings.setWarnings(warnings);
+            }
+
+            return responseWithWarnings;
         } catch (JSONException e) {
             throw new UniSenderInvalidResponseException(e);
         }
@@ -715,21 +750,21 @@ public class UniSender {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param emailId Код сообщения, возвращённый методом sendEmail.
-	 * @return status 
+	 * @return status
 	 * @see <a href="http://www.unisender.com/ru/help/api/checkEmail">http://www.unisender.com/ru/help/api/checkEmail</a>
 	 * <pre>
-	 * not_sent	 Сообщение пока ещё не отправлено - находится в очереди на отправку. 
-	 * ok_sent	 Сообщение отправлено, но статус доставки пока неизвестен. Статус временный и может измениться. 
-	 * ok_delivered	 Сообщение доставлено. Может измениться на 'ok_read' или 'ok_link_visited'. 
-	 * err_delivery_failed	 Доставка не удалась. Статус окончательный. 
-	 * err_will_retry	 Одна или несколько попыток доставки оказались неудачными, но попытки продолжаются. Статус неокончательный. 
-	 * err_spam_rejected	 Письмо отклонено сервером как спам. Статус окончательный. 
+	 * not_sent	 Сообщение пока ещё не отправлено - находится в очереди на отправку.
+	 * ok_sent	 Сообщение отправлено, но статус доставки пока неизвестен. Статус временный и может измениться.
+	 * ok_delivered	 Сообщение доставлено. Может измениться на 'ok_read' или 'ok_link_visited'.
+	 * err_delivery_failed	 Доставка не удалась. Статус окончательный.
+	 * err_will_retry	 Одна или несколько попыток доставки оказались неудачными, но попытки продолжаются. Статус неокончательный.
+	 * err_spam_rejected	 Письмо отклонено сервером как спам. Статус окончательный.
 	 * err_mailbox_full	 Почтовый ящик получателя переполнен. Статус окончательный.
 	 * </pre>
 	 */
-	public String checkEmail(String emailId) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public String checkEmail(String emailId) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
         Map<String, String> result = checkEmail(Collections.singleton(emailId));
         if (result.isEmpty()) {
             throw new UniSenderInvalidResponseException("No result received for email id " + emailId);
@@ -737,7 +772,7 @@ public class UniSender {
         return result.get(emailId);
     }
 
-    public Map<String, String> checkEmail(Set<String> emailIds) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+    public Map<String, String> checkEmail(Set<String> emailIds) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
         if (emailIds == null || emailIds.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -768,8 +803,8 @@ public class UniSender {
             throw new UniSenderInvalidResponseException(e);
         }
     }
-	
-	public Field createField(Field field) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public Field createField(Field field) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "name", field.getName());
 		MapUtils.putIfNotNull(map, "type", field.getFieldType());
@@ -784,17 +819,17 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public List<Field> getFields() throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public List<Field> getFields() throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		JSONObject response = executeMethod("getFields", null);
 		try {
 			final List<Field> result = new ArrayList<Field>();
 			final JSONArray res = response.getJSONArray("result");
-			
+
 			for (int i = 0; i < res.length(); ++i)
 			{
 				final JSONObject jfield = res.getJSONObject(i);
-				
+
 				FieldType type = FieldType.STRING;
 				String ttype = jfield.getString("type");
 				if ("text".equals(ttype)) {
@@ -804,14 +839,14 @@ public class UniSender {
 				} else if ("bool".equals(ttype)) {
 					type = FieldType.BOOL;
 				}
-				
+
 				final Field field = new Field(
 						jfield.getInt("id"),
 						jfield.getString("name"),
 						null, // no value in this response
 						type,
 						jfield.getInt("is_visible"),
-						jfield.getInt("view_pos")						
+						jfield.getInt("view_pos")
 				);
 				result.add(field);
 			}
@@ -820,8 +855,8 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public Field updateFiled(Field field) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public Field updateFiled(Field field) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "id", field.getId());
 		MapUtils.putIfNotNull(map, "name", field.getName());
@@ -837,25 +872,25 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	public void deleteField(Field field) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public void deleteField(Field field) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "id", field.getId());
 		executeMethod("deleteField", map);
 	}
-	
-	
-	public List<Tag> getTags() throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+
+	public List<Tag> getTags() throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		JSONObject response = executeMethod("getTags", null);
 		try {
 			final List<Tag> result = new ArrayList<Tag>();
 			final JSONArray res = response.getJSONArray("result");
-			
+
 			for (int i = 0; i < res.length(); ++i)
 			{
 				final JSONObject jtag = res.getJSONObject(i);
 				final Tag tag = new Tag(
 						jtag.getInt("id"),
-						jtag.getString("name")				
+						jtag.getString("name")
 				);
 				result.add(tag);
 			}
@@ -864,32 +899,32 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public void deleteTag(Tag tag) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public void deleteTag(Tag tag) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "id", tag.getId());
 		executeMethod("deleteTag", map);
 	}
-	
-	public void validateSender(ValidateSenderRequest vsr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public void validateSender(ValidateSenderRequest vsr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		MapUtils.putIfNotNull(map, "email", vsr.getEmail());
 		MapUtils.putIfNotNull(map, "login", vsr.getLogin());
 		executeMethod("validateSender", map);
 	}
 	/**
-	 * 
+	 *
 	 * @param rr
 	 * @return api_key
 	 * @see <a href="http://www.unisender.com/ru/help/api/register">http://www.unisender.com/ru/help/api/register</a>
 	 */
-	public String register(RegisterRequest rr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public String register(RegisterRequest rr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 		User u = rr.getUser();
-		
+
 		MapUtils.putIfNotNull(map, "email", u.getEmail());
 		MapUtils.putIfNotNull(map, "login", u.getLogin());
-		
+
 		MapUtils.putIfNotNull(map, "password", u.getPassword());
 		MapUtils.putIfNotNull(map, "notify", rr.getNotify());
 		MapUtils.putIfNotNull(map, "extra", rr.getExtra());
@@ -898,7 +933,7 @@ public class UniSender {
 		MapUtils.putIfNotNull(map, "currency_code", rr.getCurrencyCode());
 		MapUtils.putIfNotNull(map, "ip", rr.getIp());
 		MapUtils.putIfNotNull(map, "api_mode", rr.getApiMode());
-			
+
 		JSONObject response = executeMethod("register", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
@@ -907,12 +942,12 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	public CheckUserExistsResponse checkUserExists(CheckUserExistsRequest uer) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public CheckUserExistsResponse checkUserExists(CheckUserExistsRequest uer) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
 
 		MapUtils.putIfNotNull(map, "login", uer.getLogin());
 		MapUtils.putIfNotNull(map, "email", uer.getEmail());
-			
+
 		JSONObject response = executeMethod("checkUserExists", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
@@ -924,12 +959,12 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public UserInfo getUserInfo(String login) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public UserInfo getUserInfo(String login) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
-		
+
 		MapUtils.putIfNotNull(map, "login", login);
-		
+
 		JSONObject response = executeMethod("getUserInfo", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
@@ -949,14 +984,14 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	public TransferMoneyResponse transferMoney(TransferMoneyRequest mr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+	public TransferMoneyResponse transferMoney(TransferMoneyRequest mr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
-		
+
 		MapUtils.putIfNotNull(map, "source_login", mr.getSourceLogin());
 		MapUtils.putIfNotNull(map, "target_login", mr.getTargetLogin());
 		MapUtils.putIfNotNull(map, "sum", mr.getSum());
 		MapUtils.putIfNotNull(map, "currency", mr.getCurrency());
-		
+
 		JSONObject response = executeMethod("transferMoney", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
@@ -972,15 +1007,15 @@ public class UniSender {
 			throw new UniSenderInvalidResponseException(e);
 		}
 	}
-	
-	public FieldData exportContacts(ExportContactsRequest ecr) throws UniSenderMethodException, UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
+
+	public FieldData exportContacts(ExportContactsRequest ecr) throws UniSenderConnectException, UniSenderMethodException, UniSenderInvalidResponseException {
 		Map<String, String> map = createMap();
-		
+
 		MailList mailList = ecr.getListId();
 		if (mailList != null){
 			MapUtils.putIfNotNull(map, "list_id", mailList.getId());
 		}
-		
+
 		List<String> fields = ecr.getFieldNames();
 		if (fields != null){
 			int count = 0;
@@ -989,23 +1024,23 @@ public class UniSender {
 				++count;
 			}
 		}
-		
+
 		MapUtils.putIfNotNull(map, "offset", ecr.getOffset());
 		MapUtils.putIfNotNull(map, "limit", ecr.getLimit());
-		
+
 		JSONObject response = executeMethod("exportContacts", map);
 		try {
 			JSONObject res = response.getJSONObject("result");
-			
+
 			final FieldData fd = new FieldData();
-			
+
 			JSONArray jfields = res.getJSONArray("field_names");
 			for (int i = 0; i < jfields.length(); ++i)
 			{
 				final String field = jfields.getString(i);
 				fd.addField(field);
 			}
-			
+
 			final JSONArray jdatas = res.getJSONArray("data");
 			for (int i = 0; i < jdatas.length(); ++i){
 				JSONArray jdata = jdatas.getJSONArray(i);
@@ -1016,7 +1051,7 @@ public class UniSender {
 				fd.addValues(values);
 			}
 			return fd;
-			
+
 		} catch (JSONException e) {
 			throw new UniSenderInvalidResponseException(e);
 		}
