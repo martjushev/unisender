@@ -1,9 +1,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>UniSender</groupId>
-	<artifactId>UniSender</artifactId>
-	<version>0.0.3-SNAPSHOT</version>
+	<groupId>ee.neotech</groupId>
+	<artifactId>unisender</artifactId>
+	<version>0.1.0</version>
 	<packaging>jar</packaging>
 
 	<name>UniSender</name>
@@ -18,15 +18,6 @@
 			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 		</license>
 	</licenses>
-
-	<developers>
-		<developer>
-			<id>mikahil</id>
-			<name>Mikhail Ermakov</name>
-			<email>mikhail.ermakoff@gmail.com</email>
-			<url>http://cv.mihairu.net</url>
-		</developer>
-	</developers>
 
 	<build>
 		<plugins>
@@ -65,7 +56,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.10</version>
+            <version>4.11</version>
             <scope>test</scope>
         </dependency>
 	</dependencies>
